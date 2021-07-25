@@ -14,7 +14,7 @@ impl InputGrabber {
     }
 
     pub fn run(&self, snd: mpsc::Sender<processor::Keydata>) {
-        let file = File::open("/dev/input/event16").unwrap();
+        let file = File::open("/dev/input/event7").unwrap();
         let d = Device::new_from_file(file).unwrap();
 
         loop {
