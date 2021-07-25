@@ -20,12 +20,9 @@ impl Processor {
 
     pub fn process_second(&self) {
         println!("Second callback");
-        /*
         Notification::new()
             .summary("Firefox News")
             .body("This will almost look like a real firefox notification.")
-            .icon("firefox")
             .show().unwrap();
-            */
     }
 }
