@@ -1,5 +1,5 @@
 use evdev_rs::Device;
-use std::fs::File;
+use std::fs;
 use evdev_rs::ReadFlag;
 use std::sync::mpsc;
 
@@ -14,7 +14,25 @@ impl InputGrabber {
     }
 
     pub fn run(&self, snd: mpsc::Sender<processor::Keydata>) {
-        let file = File::open("/dev/input/event7").unwrap();
+        /* Idea: move out and spawn a new thread for each "kbd" instead */
+        let files = fs::read_dir("/dev/input/by-path").unwrap();
+        let mut file = String::new();
+
+        let mut ffound = false;
+        for f in files {
+            let s = String::from(f.unwrap().path().to_string_lossy());
+            if s.contains("kbd") && s.contains("usb") {
+                file = s;
+                ffound = true;
+            }
+        }
+
+        if !ffound {
+            panic!("Failed to find input device for listening..");
+        }
+
+
+        let file = fs::File::open(file).unwrap();
         let d = Device::new_from_file(file).unwrap();
 
         loop {
