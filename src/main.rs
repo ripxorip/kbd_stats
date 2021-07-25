@@ -5,7 +5,9 @@ use std::thread;
 use std::time::Duration;
 use std::sync::mpsc;
 
-fn event_thread(snd: mpsc::Sender<u32>) {
+mod processor;
+
+fn event_thread(snd: mpsc::Sender<processor::Keydata>) {
     let file = File::open("/dev/input/event16").unwrap();
     let d = Device::new_from_file(file).unwrap();
 
@@ -16,7 +18,8 @@ fn event_thread(snd: mpsc::Sender<u32>) {
                 match ev.event_type() {
                     Some(et) => {
                         if (et == evdev_rs::enums::EventType::EV_KEY) && (ev.value > 0) {
-                            snd.send(ev.value as u32).unwrap();
+                            let kd = processor::Keydata {symbol: ev.event_code.to_string() };
+                            snd.send(kd).unwrap();
                         }
                     },
                     None => (),
@@ -27,18 +30,20 @@ fn event_thread(snd: mpsc::Sender<u32>) {
     }
 }
 
-fn timer_thread(rcv: mpsc::Receiver<u32>) {
+fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>) {
+    let p = processor::Processor::new();
     loop {
         loop {
             let res = rcv.try_recv();
             match res {
                 Ok(key) => {
                     /* Process the key */
-                    println!("{}", key)
+                    p.process_key(key);
                 },
                 Err(reason) => {
                     match reason {
                         mpsc::TryRecvError::Empty => {
+                            p.process_second();
                             break;
                         },
                         mpsc::TryRecvError::Disconnected => {
