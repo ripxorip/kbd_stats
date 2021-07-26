@@ -2,6 +2,8 @@ use std::thread;
 use std::time::Duration;
 use std::sync::mpsc;
 
+mod util;
+mod ui;
 mod processor;
 mod input_grabber_linux;
 

@@ -1,4 +1,5 @@
 use notify_rust::Notification;
+use crate::ui;
 
 #[derive(Debug, std::cmp::PartialEq)]
 pub enum KeyKind {
@@ -34,6 +35,7 @@ pub struct Processor {
 impl Processor {
 
     pub fn new() -> Processor {
+        ui::test_ui().unwrap();
         Processor{timer: 0, keys_total: 0, current_keys: Some(Vec::new())}
     }
 

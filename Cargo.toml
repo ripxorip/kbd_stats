@@ -10,3 +10,6 @@ evdev-rs = { version = "0.5.0", features = ["serde"] }
 libc = "0.2"
 notify-rust = "4"
 regex = "1"
+tui = "0.15"
+termion = "1.5"
+rand = "0.8.0"
