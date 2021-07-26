@@ -11,7 +11,7 @@ fn event_thread(snd: mpsc::Sender<processor::Keydata>) {
 }
 
 fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>) {
-    let p = processor::Processor::new();
+    let mut p = processor::Processor::new();
     loop {
         loop {
             let res = rcv.try_recv();

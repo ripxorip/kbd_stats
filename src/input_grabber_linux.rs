@@ -35,7 +35,20 @@ impl InputGrabber {
                     match ev.event_type() {
                         Some(et) => {
                             if (et == evdev_rs::enums::EventType::EV_KEY) && (ev.value > 0) {
-                                let kd = processor::Keydata {symbol: ev.event_code.to_string() };
+
+                                let keykind = match ev.value {
+                                    1 => {
+                                        processor::KeyKind::Single
+                                    },
+                                    2 => {
+                                        processor::KeyKind::Hold
+                                    }
+                                    _ => {
+                                        panic!("Unknown keykind {}", ev.value);
+                                    }
+                                };
+
+                                let kd = processor::Keydata::new(ev.event_code.to_string(), keykind);
                                 snd.send(kd).unwrap();
                             }
                         },
