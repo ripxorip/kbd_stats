@@ -12,8 +12,8 @@ fn event_thread(snd: mpsc::Sender<processor::Keydata>) {
     lig.run(snd);
 }
 
-fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>) {
-    let mut p = processor::Processor::new();
+fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>, ui_send: mpsc::Sender<processor::UiData>) {
+    let mut p = processor::Processor::new(ui_send);
     loop {
         loop {
             let res = rcv.try_recv();
@@ -40,12 +40,20 @@ fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>) {
     }
 }
 
+fn ui_thread(rcv: mpsc::Receiver<processor::UiData>)
+{
+    let u = ui::UI::new(rcv);
+    u.run();
+}
+
 fn main() {
+    let (ui_send, ui_recv) = mpsc::channel();
+    let _ui_thread_handle = thread::spawn(move || {
+        ui_thread(ui_recv);
+    });
     let (send, recv) = mpsc::channel();
     let _timer_thread_handle = thread::spawn(move || {
-        timer_thread(recv);
+        timer_thread(recv, ui_send);
     });
     event_thread(send);
 }
-
-// try_recv, thread, move to lib.rs, read from the book again

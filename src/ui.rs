@@ -5,6 +5,9 @@ use crate::util::{
     SinSignal,
 };
 
+use std::sync::mpsc;
+use crate::processor;
+
 use std::{error::Error, io};
 use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
@@ -134,4 +137,28 @@ pub fn test_ui() -> Result<(), Box<dyn Error>> {
         }
     }
     Ok(())
+}
+
+pub struct UI {
+    rx: mpsc::Receiver<processor::UiData>,
+}
+
+impl UI {
+    pub fn new(rcv: mpsc::Receiver<processor::UiData>) -> UI {
+        UI{rx: rcv}
+    }
+
+    pub fn run(&self) {
+        /* Start the UI and then loop */
+        let stdout = io::stdout().into_raw_mode().unwrap();
+        let stdout = MouseTerminal::from(stdout);
+        let stdout = AlternateScreen::from(stdout);
+        let backend = TermionBackend::new(stdout);
+        let mut terminal = Terminal::new(backend).unwrap();
+
+        loop {
+            let msg = self.rx.recv().unwrap();
+            println!("{:?}", msg);
+        }
+    }
 }
