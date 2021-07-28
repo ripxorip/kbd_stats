@@ -1,6 +1,10 @@
+use std::io;
 use std::thread;
 use std::time::Duration;
 use std::sync::mpsc;
+
+use termion::event::Key;
+use termion::input::TermRead;
 
 mod util;
 mod ui;
@@ -55,5 +59,20 @@ fn main() {
     let _timer_thread_handle = thread::spawn(move || {
         timer_thread(recv, ui_send);
     });
-    event_thread(send);
+
+    let _event_thread_handle = thread::spawn(move || {
+        event_thread(send);
+    });
+
+    loop {
+        let stdin = io::stdin();
+        for evt in stdin.keys() {
+            if let Ok(key) = evt {
+                if key == Key::Char('q') {
+                    /* FIXME: Exit gracefully using the thread handles */
+                    return;
+                }
+            }
+        }
+    }
 }
