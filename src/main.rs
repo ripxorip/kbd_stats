@@ -46,7 +46,7 @@ fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>, ui_send: mpsc::Sender<p
 
 fn ui_thread(rcv: mpsc::Receiver<processor::UiData>)
 {
-    let u = ui::UI::new(rcv);
+    let mut u = ui::UI::new(rcv);
     u.run();
 }
 
