@@ -1,6 +1,5 @@
 use notify_rust::Notification;
 use std::sync::mpsc;
-use std::io;
 
 #[derive(Debug, std::cmp::PartialEq)]
 pub enum KeyKind {
