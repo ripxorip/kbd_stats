@@ -1,5 +1,4 @@
 use notify_rust::Notification;
-use crate::ui;
 use std::sync::mpsc;
 use std::io;
 

@@ -6,7 +6,6 @@ use std::sync::mpsc;
 use termion::event::Key;
 use termion::input::TermRead;
 
-mod util;
 mod ui;
 mod processor;
 mod input_grabber_linux;
