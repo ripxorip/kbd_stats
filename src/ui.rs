@@ -8,7 +8,7 @@ use crate::util::{
 use std::sync::mpsc;
 use crate::processor;
 
-use ringbuf::{RingBuffer, Producer, Consumer};
+use std::collections::VecDeque;
 
 use std::{error::Error, io};
 use termion::{event::Key, input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
@@ -144,7 +144,7 @@ pub fn test_ui() -> Result<(), Box<dyn Error>> {
 pub struct UI {
     rx: mpsc::Receiver<processor::UiData>,
     /* Incoming ringbuffer */
-    in_buf: (Producer<f64>, Consumer<f64>),
+    in_buf: VecDeque<f64>,
     /* Window */
     x_axis_window: [f64; 2],
     /* X and Y */
@@ -153,15 +153,16 @@ pub struct UI {
 
 impl UI {
     pub fn new(rcv: mpsc::Receiver<processor::UiData>) -> UI {
-        let rb = RingBuffer::<f64>::new(20);
 
-        let (mut prod, cons) = rb.split();
+        let mut vd = VecDeque::<f64>::with_capacity(20);
+        let mut dv = Vec::<(f64, f64)>::with_capacity(20);
 
         for i in 0..20 {
-            prod.push(i as f64).unwrap();
+            vd.push_back(i as f64);
+            dv.push((0.00, 0.00));
         }
 
-        UI{rx: rcv, in_buf: (prod, cons), x_axis_window: [0.0, 20.0], data: vec!((0.00,0.00))}
+        UI{rx: rcv, in_buf: vd, x_axis_window: [0.0, 20.0], data: dv }
     }
 
     pub fn run(&mut self) {
@@ -239,21 +240,11 @@ impl UI {
 
             let _msg = self.rx.recv().unwrap();
 
-            let mut cnt = 0.00;
-            /* FIXME Can be done in a nicer way, maybe with my own
-             * implementation of a circular buffer using Iterator traits
-             * now a new Vector is allocated and the old one is dropped
-             * because of not being able to borrow self again in the
-             * clojure */
-            let mut d = Vec::<(f64, f64)>::new();
-            self.in_buf.1.for_each(|e| {
-                d.push((cnt, *e));
-                cnt += 1.00;
-            });
-            self.data = d;
+            /* Shall push data from the msg instead */
+            self.in_buf.pop_front();
+            self.in_buf.push_back(5.00);
 
-            //println!("{:?}", msg);
-            /* Update the graph depending on the msg */
+            for (i, it) in self.in_buf.iter().enumerate() { self.data[i] = (i as f64, *it); }
         }
     }
 }
