@@ -3,8 +3,6 @@
 use std::sync::mpsc;
 use crate::processor;
 
-use std::collections::VecDeque;
-
 use std::io;
 use termion::{input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
@@ -17,10 +15,10 @@ use tui::{
     Terminal,
 };
 
+pub const X_AXIS_SIZE:usize = 20;
+
 pub struct UI {
     rx: mpsc::Receiver<processor::UiData>,
-    /* Incoming ringbuffer */
-    in_buf: VecDeque<f64>,
     /* Window */
     x_axis_window: [f64; 2],
     /* X and Y */
@@ -30,15 +28,13 @@ pub struct UI {
 impl UI {
     pub fn new(rcv: mpsc::Receiver<processor::UiData>) -> UI {
 
-        let mut vd = VecDeque::<f64>::with_capacity(20);
         let mut dv = Vec::<(f64, f64)>::with_capacity(20);
 
-        for i in 0..20 {
-            vd.push_back(i as f64);
+        for _ in 0..20 {
             dv.push((0.00, 0.00));
         }
 
-        UI{rx: rcv, in_buf: vd, x_axis_window: [0.0, 20.0], data: dv }
+        UI{rx: rcv, x_axis_window: [0.0, 20.0], data: dv }
     }
 
     pub fn run(&mut self) {
@@ -107,20 +103,15 @@ impl UI {
                         .labels(vec![
                                 Span::styled("0", Style::default().add_modifier(Modifier::BOLD)),
                                 Span::raw("0"),
-                                Span::styled("20", Style::default().add_modifier(Modifier::BOLD)),
+                                Span::styled("60", Style::default().add_modifier(Modifier::BOLD)),
                         ])
-                        .bounds([0.00, 20.00]),
+                        .bounds([0.00, 60.00]),
                         );
                 f.render_widget(chart, chunks[2]);
             }).unwrap();
 
-            let _msg = self.rx.recv().unwrap();
-
-            /* Shall push data from the msg instead */
-            self.in_buf.pop_front();
-            self.in_buf.push_back(5.00);
-
-            for (i, it) in self.in_buf.iter().enumerate() { self.data[i] = (i as f64, *it); }
+            /* Get new data for plotting */
+            self.data = self.rx.recv().unwrap().graph_data;
         }
     }
 }
