@@ -42,6 +42,7 @@ pub struct Processor {
     tx: mpsc::Sender<UiData>,
     current_keys: Option<Vec<Keydata>>,
     wpm_circ_buf: VecDeque<u32>,
+    wpm: u32,
 }
 
 impl Processor {
@@ -55,7 +56,8 @@ impl Processor {
                  keys_total: 0,
                  tx: sender,
                  current_keys: Some(Vec::new()),
-                 wpm_circ_buf: vd}
+                 wpm_circ_buf: vd,
+                 wpm: 0}
     }
 
     pub fn process_key(&mut self, mut kd: Keydata) {
@@ -80,9 +82,9 @@ impl Processor {
         }
 
         if let Some(keys) = &mut self.current_keys {
-            let wpm = (keys.len() as u32)/5;
+            self.wpm = (keys.len() as u32)/5;
             self.wpm_circ_buf.pop_front();
-            self.wpm_circ_buf.push_back(wpm);
+            self.wpm_circ_buf.push_back(self.wpm);
         }
 
         /* Update the GUI every Nth second */
@@ -103,10 +105,9 @@ impl Processor {
 
             self.tx.send(UiData{graph_data}).unwrap();
 
-            let wpm = self.wpm_circ_buf.back().unwrap();
             Notification::new()
                 .summary("WPM Alert")
-                .body(&format!("Your current WPM is {}", wpm)[..])
+                .body(&format!("Your current WPM is {}", self.wpm)[..])
                 .show().unwrap();
         }
 
