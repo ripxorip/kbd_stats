@@ -1,5 +1,6 @@
 #[allow(dead_code)]
 
+use std::collections::VecDeque;
 use std::sync::mpsc;
 use crate::processor;
 
@@ -7,11 +8,11 @@ use std::io;
 use termion::{input::MouseTerminal, raw::IntoRawMode, screen::AlternateScreen};
 use tui::{
     backend::TermionBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Corner},
     style::{Color, Modifier, Style},
     symbols,
-    text::Span,
-    widgets::{Axis, Block, Borders, Chart, Dataset},
+    text::{Span, Spans},
+    widgets::{Axis, Block, Borders, Chart, Dataset, List, ListItem},
     Terminal,
 };
 
@@ -23,6 +24,8 @@ pub struct UI {
     x_axis_window: [f64; 2],
     /* X and Y */
     data: Vec<(f64, f64)>,
+    /* Circular buffer for all the info strings */
+    info_buf: VecDeque<String>,
 }
 
 impl UI {
@@ -34,7 +37,13 @@ impl UI {
             dv.push((0.00, 0.00));
         }
 
-        UI{rx: rcv, x_axis_window: [0.0, 20.0], data: dv }
+        let mut info_buf = VecDeque::<String>::new();
+
+        for _ in 0..100 {
+            info_buf.push_back(String::from(""));
+        }
+
+        UI{rx: rcv, x_axis_window: [0.0, 20.0], data: dv , info_buf}
     }
 
     pub fn run(&mut self) {
@@ -91,7 +100,7 @@ impl UI {
                         )
                     .x_axis(
                         Axis::default()
-                        .title("Time (Seconds)")
+                        .title("Time (1 Hour)")
                         .style(Style::default().fg(Color::Gray))
                         .labels(x_labels)
                         .bounds(self.x_axis_window),
@@ -108,10 +117,21 @@ impl UI {
                         .bounds([0.00, 60.00]),
                         );
                 f.render_widget(chart, chunks[2]);
+
+                /* Test to render a list */
+                let mut info_items = Vec::<ListItem>::new();
+                self.info_buf.iter().rev().for_each(|s| {info_items.push(ListItem::new(vec![Spans::from(&s[..])]))});
+                let list = List::new(info_items)
+                    .block(Block::default().borders(Borders::ALL).title("Info"))
+                    .start_corner(Corner::BottomLeft);
+                f.render_widget(list, chunks[1]);
             }).unwrap();
 
             /* Get new data for plotting */
-            self.data = self.rx.recv().unwrap().graph_data;
+            let msg = self.rx.recv().unwrap();
+            self.data = msg.graph_data;
+            self.info_buf.pop_front();
+            self.info_buf.push_back(msg.info_string);
         }
     }
 }

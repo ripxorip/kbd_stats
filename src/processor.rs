@@ -22,6 +22,7 @@ pub struct Keydata {
 #[derive(Debug)]
 pub struct UiData {
     pub graph_data: Vec<(f64, f64)>,
+    pub info_string: String,
 }
 
 impl Keydata {
@@ -87,30 +88,30 @@ impl Processor {
             self.wpm_circ_buf.push_back(self.wpm);
         }
 
-        /* Update the GUI every Nth second */
-        if 0 == (self.timer % 10)
-        {
-            let mut graph_data = Vec::<(f64, f64)>::new();
-            let slice_size = CIRC_BUF_SIZE / ui::X_AXIS_SIZE;
-            for i in 0..ui::X_AXIS_SIZE {
-                let sum:u32 = self.wpm_circ_buf
-                    .iter()
-                    .rev()
-                    .skip(i*slice_size)
-                    .take(slice_size)
-                    .sum();
+        let mut graph_data = Vec::<(f64, f64)>::new();
+        let slice_size = CIRC_BUF_SIZE / ui::X_AXIS_SIZE;
+        for i in 0..ui::X_AXIS_SIZE {
+            let sum:u32 = self.wpm_circ_buf
+                .iter()
+                .rev()
+                .skip(i*slice_size)
+                .take(slice_size)
+                .sum();
 
-                let sum = sum / slice_size as u32;
-                graph_data.push((i as f64, sum as f64));
-            }
-
-            self.tx.send(UiData{graph_data}).unwrap();
-
-            Notification::new()
-                .summary("WPM Alert")
-                .body(&format!("Your current WPM is {}", self.wpm)[..])
-                .show().unwrap();
+            let sum = sum / slice_size as u32;
+            graph_data.push((i as f64, sum as f64));
         }
+
+        let info_string = String::from(format!("Current WPM: {} Total Keys: {}", self.wpm, self.keys_total));
+        self.tx.send(UiData{graph_data, info_string}).unwrap();
+
+        /* Figure out when to send a notification in the future */
+        /*
+           Notification::new()
+           .summary("WPM Alert")
+           .body(&format!("Your current WPM is {}", self.wpm)[..])
+           .show().unwrap();
+        */
 
     }
 }
