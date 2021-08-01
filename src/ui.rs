@@ -31,9 +31,9 @@ pub struct UI {
 impl UI {
     pub fn new(rcv: mpsc::Receiver<processor::UiData>) -> UI {
 
-        let mut dv = Vec::<(f64, f64)>::with_capacity(20);
+        let mut dv = Vec::<(f64, f64)>::with_capacity(X_AXIS_SIZE);
 
-        for _ in 0..20 {
+        for _ in 0..X_AXIS_SIZE {
             dv.push((0.00, 0.00));
         }
 
@@ -43,7 +43,7 @@ impl UI {
             info_buf.push_back(String::from(""));
         }
 
-        UI{rx: rcv, x_axis_window: [0.0, 20.0], data: dv , info_buf}
+        UI{rx: rcv, x_axis_window: [0.0, X_AXIS_SIZE as f64], data: dv , info_buf}
     }
 
     pub fn run(&mut self) {
