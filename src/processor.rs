@@ -95,12 +95,13 @@ impl Processor {
             for i in 0..ui::X_AXIS_SIZE {
                 let sum:u32 = self.wpm_circ_buf
                     .iter()
+                    .rev()
                     .skip(i*slice_size)
                     .take(slice_size)
                     .sum();
 
                 let sum = sum / slice_size as u32;
-                graph_data.push(((ui::X_AXIS_SIZE-(i+1)) as f64, sum as f64));
+                graph_data.push((i as f64, sum as f64));
             }
 
             self.tx.send(UiData{graph_data}).unwrap();
