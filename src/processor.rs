@@ -2,6 +2,7 @@ use notify_rust::Notification;
 use std::collections::VecDeque;
 use std::sync::mpsc;
 use crate::ui;
+use std::collections::HashMap;
 
 const CIRC_BUF_SIZE:usize = 3600;
 
@@ -44,6 +45,7 @@ pub struct Processor {
     current_keys: Option<Vec<Keydata>>,
     wpm_circ_buf: VecDeque<u32>,
     wpm: u32,
+    characters: HashMap<String, u32>,
 }
 
 impl Processor {
@@ -52,19 +54,25 @@ impl Processor {
 
         let mut vd = VecDeque::<u32>::with_capacity(CIRC_BUF_SIZE);
         for _ in 0..CIRC_BUF_SIZE { vd.push_back(0); }
+        let characters = HashMap::new();
 
         Processor{timer: 0,
                  keys_total: 0,
                  tx: sender,
                  current_keys: Some(Vec::new()),
                  wpm_circ_buf: vd,
-                 wpm: 0}
+                 wpm: 0,
+                 characters}
     }
 
     pub fn process_key(&mut self, mut kd: Keydata) {
         kd.set_timestamp(self.timer);
 
         if *kd.get_kind() == KeyKind::Single { self.keys_total += 1;}
+
+        let mut count = 1;
+        if let Some(c) = self.characters.get(kd.get_symbol()) { count = *c + 1; }
+        self.characters.insert(kd.get_symbol().clone(), count);
 
         if let Some(keys) = &mut self.current_keys { keys.push(kd); }
     }
@@ -102,7 +110,12 @@ impl Processor {
             graph_data.push((i as f64, sum as f64));
         }
 
-        let info_string = String::from(format!("Current WPM: {} Total Keys: {}", self.wpm, self.keys_total));
+        let mut char_vec: Vec<(&String, &u32)> = self.characters.iter().collect();
+        char_vec.sort_by(|a, b| b.1.cmp(a.1));
+
+        //let info_string = String::from(format!("Current WPM: {} Total Keys: {}", self.wpm, self.keys_total));
+        let mut info_string = String::from("");
+        char_vec.iter().for_each(|x| info_string += &format!("{}:{} ", x.0, x.1)[..]);
         self.tx.send(UiData{graph_data, info_string}).unwrap();
 
         /* Figure out when to send a notification in the future */
