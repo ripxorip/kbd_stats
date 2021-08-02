@@ -38,7 +38,7 @@ fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>, ui_send: mpsc::Sender<p
                             break;
                         },
                         mpsc::TryRecvError::Disconnected => {
-                            panic!("Channel Disconnected");
+                            panic!("Failed to read from input event, make sure to specify the correct file using --input");
                         }
                     }
                 }
@@ -63,7 +63,7 @@ fn get_params() -> CLIParams {
                  .short("i")
                  .long("input_file")
                  .takes_value(true)
-                 .required(false)
+                 .required(true) // Can be false for dev (therefore the Option)
                  .help("The input file to listen to. (Hint: See /dev/input/by-path)"))
         .get_matches();
     let input_path = match matches.value_of("input_file") {
