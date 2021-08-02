@@ -57,6 +57,7 @@ impl UI {
         let stdout = AlternateScreen::from(stdout);
         let backend = TermionBackend::new(stdout);
         let mut terminal = Terminal::new(backend).unwrap();
+        terminal.clear().unwrap();
 
         loop {
             terminal.draw(|f| {
