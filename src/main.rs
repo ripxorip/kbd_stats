@@ -38,7 +38,6 @@ fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>, ui_send: mpsc::Sender<p
                 }
             }
         }
-        /* Update GUI / stats? */
         thread::sleep(Duration::from_millis(1000));
     }
 }
