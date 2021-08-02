@@ -12,7 +12,7 @@ use tui::{
     style::{Color, Modifier, Style},
     symbols,
     text::{Span, Spans},
-    widgets::{Axis, Block, Borders, Chart, Dataset, List, ListItem},
+    widgets::{BarChart, Axis, Block, Borders, Chart, Dataset, List, ListItem},
     Terminal,
 };
 
@@ -26,6 +26,8 @@ pub struct UI {
     data: Vec<(f64, f64)>,
     /* Circular buffer for all the info strings */
     info_buf: VecDeque<String>,
+    /* The barchart vector type */
+    barchart_vec: Vec<(String, u32)>,
 }
 
 impl UI {
@@ -43,7 +45,9 @@ impl UI {
             info_buf.push_back(String::from(""));
         }
 
-        UI{rx: rcv, x_axis_window: [0.0, X_AXIS_SIZE as f64], data: dv , info_buf}
+        let barchart_vec = Vec::<(String, u32)>::new();
+
+        UI{rx: rcv, x_axis_window: [0.0, X_AXIS_SIZE as f64], data: dv , info_buf, barchart_vec}
     }
 
     pub fn run(&mut self) {
@@ -56,6 +60,7 @@ impl UI {
 
         loop {
             terminal.draw(|f| {
+                /* Graph */
                 let size = f.size();
                 let chunks = Layout::default()
                     .direction(Direction::Vertical)
@@ -118,13 +123,25 @@ impl UI {
                         );
                 f.render_widget(chart, chunks[2]);
 
-                /* Test to render a list */
+                /* Info list */
                 let mut info_items = Vec::<ListItem>::new();
                 self.info_buf.iter().rev().for_each(|s| {info_items.push(ListItem::new(vec![Spans::from(&s[..])]))});
                 let list = List::new(info_items)
                     .block(Block::default().borders(Borders::ALL).title("Info"))
                     .start_corner(Corner::BottomLeft);
                 f.render_widget(list, chunks[1]);
+
+                let mut bcd = Vec::<(&str, u64)>::new();
+                self.barchart_vec.iter().for_each(|x| bcd.push((&x.0[..], x.1 as u64)));
+
+                /* Bar chart */
+                let barchart = BarChart::default()
+                    .block(Block::default().title("Keys").borders(Borders::ALL))
+                    .data(&bcd)
+                    .bar_width(9)
+                    .bar_style(Style::default().fg(Color::Yellow))
+                    .value_style(Style::default().fg(Color::Black).bg(Color::Yellow));
+                f.render_widget(barchart, chunks[0]);
             }).unwrap();
 
             /* Get new data for plotting */
@@ -132,6 +149,7 @@ impl UI {
             self.data = msg.graph_data;
             self.info_buf.pop_front();
             self.info_buf.push_back(msg.info_string);
+            self.barchart_vec = msg.key_freq;
         }
     }
 }

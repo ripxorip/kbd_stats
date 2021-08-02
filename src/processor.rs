@@ -24,6 +24,7 @@ pub struct Keydata {
 pub struct UiData {
     pub graph_data: Vec<(f64, f64)>,
     pub info_string: String,
+    pub key_freq: Vec<(String, u32)>,
 }
 
 impl Keydata {
@@ -113,10 +114,13 @@ impl Processor {
         let mut char_vec: Vec<(&String, &u32)> = self.characters.iter().collect();
         char_vec.sort_by(|a, b| b.1.cmp(a.1));
 
-        //let info_string = String::from(format!("Current WPM: {} Total Keys: {}", self.wpm, self.keys_total));
-        let mut info_string = String::from("");
-        char_vec.iter().for_each(|x| info_string += &format!("{}:{} ", x.0, x.1)[..]);
-        self.tx.send(UiData{graph_data, info_string}).unwrap();
+        let info_string = String::from(format!("Current WPM: {} Total Keys: {}", self.wpm, self.keys_total));
+
+        let mut key_freq = Vec::<(String, u32)>::new();
+        /* Clone actually needed here because of threads ? */
+        char_vec.iter().for_each(|x| key_freq.push((x.0.clone(), *x.1)));
+
+        self.tx.send(UiData{graph_data, info_string, key_freq}).unwrap();
 
         /* Figure out when to send a notification in the future */
         /*
