@@ -29,13 +29,9 @@ pub struct UiData {
 
 impl Keydata {
     pub fn new(symbol: String, kind: KeyKind) -> Keydata { Keydata{symbol, kind, timestamp: 0} }
-
     pub fn set_timestamp(&mut self, timestamp: u64) { self.timestamp = timestamp; }
-
     pub fn get_timestamp(&self) -> u64 { self.timestamp }
-
     pub fn get_kind(&self) -> &KeyKind { &self.kind }
-
     pub fn get_symbol(&self) -> &String { &self.symbol }
 }
 
@@ -50,7 +46,6 @@ pub struct Processor {
 }
 
 impl Processor {
-
     pub fn new(sender: mpsc::Sender<UiData>) -> Processor {
 
         let mut vd = VecDeque::<u32>::with_capacity(CIRC_BUF_SIZE);
@@ -78,25 +73,25 @@ impl Processor {
         if let Some(keys) = &mut self.current_keys { keys.push(kd); }
     }
 
-    pub fn process_second(&mut self) {
-        self.timer += 1;
-
-        if self.timer > 60 {
-            let opt_keys = self.current_keys.take();
-            if let Some(keys) = opt_keys {
-                self.current_keys = Some(keys
-                                         .into_iter()
-                                         .filter(|k| k.get_timestamp() > (self.timer - 60))
-                                         .collect());
-            }
+    fn filter_keys(&mut self) {
+        let opt_keys = self.current_keys.take();
+        if let Some(keys) = opt_keys {
+            self.current_keys = Some(keys
+                                     .into_iter()
+                                     .filter(|k| k.get_timestamp() > (self.timer - 60))
+                                     .collect());
         }
+    }
 
+    fn calculate_wpm(&mut self) {
         if let Some(keys) = &mut self.current_keys {
             self.wpm = (keys.len() as u32)/5;
             self.wpm_circ_buf.pop_front();
             self.wpm_circ_buf.push_back(self.wpm);
         }
+    }
 
+    fn produce_graph_data(&self) -> Vec::<(f64, f64)> {
         let mut graph_data = Vec::<(f64, f64)>::new();
         let slice_size = CIRC_BUF_SIZE / ui::X_AXIS_SIZE;
         for i in 0..ui::X_AXIS_SIZE {
@@ -110,25 +105,38 @@ impl Processor {
             let sum = sum / slice_size as u32;
             graph_data.push((i as f64, sum as f64));
         }
+        graph_data
+    }
+
+    fn check_notify(&self) {
+        let shall_notify = false;
+        if shall_notify {
+            Notification::new()
+                .summary("WPM Alert")
+                .body(&format!("Your current WPM is {}", self.wpm)[..])
+                .show().unwrap();
+        }
+    }
+
+    pub fn process_second(&mut self) {
+        self.timer += 1;
+        if self.timer > 60 { self.filter_keys(); }
+
+        self.calculate_wpm();
+
+        let graph_data = self.produce_graph_data();
 
         let mut char_vec: Vec<(&String, &u32)> = self.characters.iter().collect();
         char_vec.sort_by(|a, b| b.1.cmp(a.1));
 
-        let info_string = String::from(format!("Current WPM: {} Total Keys: {}", self.wpm, self.keys_total));
+        let info_string = String::from(format!("Current WPM: {} Total Keys: {}",
+                                               self.wpm, self.keys_total));
 
         let mut key_freq = Vec::<(String, u32)>::new();
-        /* Clone actually needed here because of threads ? */
         char_vec.iter().for_each(|x| key_freq.push((x.0.clone(), *x.1)));
 
         self.tx.send(UiData{graph_data, info_string, key_freq}).unwrap();
 
-        /* Figure out when to send a notification in the future */
-        /*
-           Notification::new()
-           .summary("WPM Alert")
-           .body(&format!("Your current WPM is {}", self.wpm)[..])
-           .show().unwrap();
-        */
-
+        self.check_notify();
     }
 }
