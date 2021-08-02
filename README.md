@@ -5,7 +5,7 @@ A program used to log/measure keyboard metrics
 
 # Install
 ## Arch Linux
-Install from the AUR: ![kbd_stats](https://aur.archlinux.org/packages/kbd_stats-git/)
+Install from the AUR: [kbd_stats](https://aur.archlinux.org/packages/kbd_stats-git/)
 
 # Usage
 `kbd_stats --input_file /dev/input/by-path/platform-i8042-serio-0-event-kbd` where
