@@ -6,12 +6,18 @@ use std::sync::mpsc;
 use termion::event::Key;
 use termion::input::TermRead;
 
+use clap::{Arg, App};
+
 mod ui;
 mod processor;
 mod input_grabber_linux;
 
-fn event_thread(snd: mpsc::Sender<processor::Keydata>) {
-    let lig = input_grabber_linux::InputGrabber::new();
+struct CLIParams {
+    input_path: Option<String>,
+}
+
+fn event_thread(event_file: Option<String>, snd: mpsc::Sender<processor::Keydata>) {
+    let lig = input_grabber_linux::InputGrabber::new(event_file);
     lig.run(snd);
 }
 
@@ -48,7 +54,32 @@ fn ui_thread(rcv: mpsc::Receiver<processor::UiData>)
     u.run();
 }
 
+fn get_params() -> CLIParams {
+    let matches = App::new("Keyboard Statistics")
+        .version("0.1.0")
+        .author("Philip Karlsson Gisslow <ripxorip@gmail.com>")
+        .about("Program used to log/measure Keyboard metrics")
+        .arg(Arg::with_name("input_file")
+                 .short("i")
+                 .long("input_file")
+                 .takes_value(true)
+                 .required(false)
+                 .help("The input file to listen to. (Hint: See /dev/input/by-path)"))
+        .get_matches();
+    let input_path = match matches.value_of("input_file") {
+        Some(s) => {
+            Some(String::from(s))
+        }
+        None => {
+            None
+        }
+    };
+    CLIParams {input_path}
+}
+
 fn main() {
+    let params = get_params();
+
     let (ui_send, ui_recv) = mpsc::channel();
     let _ui_thread_handle = thread::spawn(move || {
         ui_thread(ui_recv);
@@ -59,7 +90,7 @@ fn main() {
     });
 
     let _event_thread_handle = thread::spawn(move || {
-        event_thread(send);
+        event_thread(params.input_path, send);
     });
 
     loop {
