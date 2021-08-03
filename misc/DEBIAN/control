@@ -1,0 +1,5 @@
+Package: kbd-stats
+Version: 0.1.0.34.gc5d1096
+Architecture: amd64
+Maintainer: Philip K. Gisslow <ripxorip@gmail.com>
+Description: A program that logs/measure keyboard metrics.
