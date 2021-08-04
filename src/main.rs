@@ -12,17 +12,16 @@ mod ui;
 mod processor;
 mod input_grabber_linux;
 
-struct CLIParams {
-    input_path: Option<String>,
-}
 
 fn event_thread(event_file: Option<String>, snd: mpsc::Sender<processor::Keydata>) {
     let lig = input_grabber_linux::InputGrabber::new(event_file);
     lig.run(snd);
 }
 
-fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>, ui_send: mpsc::Sender<processor::UiData>) {
-    let mut p = processor::Processor::new(ui_send);
+fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>,
+                ui_send: mpsc::Sender<processor::UiData>,
+                output_file: Option<String>) {
+    let mut p = processor::Processor::new(ui_send, output_file);
     loop {
         loop {
             let res = rcv.try_recv();
@@ -54,7 +53,7 @@ fn ui_thread(rcv: mpsc::Receiver<processor::UiData>)
     u.run();
 }
 
-fn get_params() -> CLIParams {
+fn get_params() -> (Option<String>, Option<String>) {
     let matches = App::new("Keyboard Statistics")
         .version("0.1.0")
         .author("Philip Karlsson Gisslow <ripxorip@gmail.com>")
@@ -65,6 +64,12 @@ fn get_params() -> CLIParams {
                  .takes_value(true)
                  .required(true) // Can be false for dev (therefore the Option)
                  .help("The input file to listen to. (Hint: See /dev/input/by-path)"))
+        .arg(Arg::with_name("output_file")
+                 .short("o")
+                 .long("output_file")
+                 .takes_value(true)
+                 .required(false)
+                 .help("Write the statistics to file"))
         .get_matches();
     let input_path = match matches.value_of("input_file") {
         Some(s) => {
@@ -74,11 +79,19 @@ fn get_params() -> CLIParams {
             None
         }
     };
-    CLIParams {input_path}
+    let output_file = match matches.value_of("output_file") {
+        Some(s) => {
+            Some(String::from(s))
+        }
+        None => {
+            None
+        }
+    };
+    (input_path, output_file)
 }
 
 fn main() {
-    let params = get_params();
+    let (input_path, output_file) = get_params();
 
     let (ui_send, ui_recv) = mpsc::channel();
     let _ui_thread_handle = thread::spawn(move || {
@@ -86,11 +99,11 @@ fn main() {
     });
     let (send, recv) = mpsc::channel();
     let _timer_thread_handle = thread::spawn(move || {
-        timer_thread(recv, ui_send);
+        timer_thread(recv, ui_send, output_file);
     });
 
     let _event_thread_handle = thread::spawn(move || {
-        event_thread(params.input_path, send);
+        event_thread(input_path, send);
     });
 
     loop {

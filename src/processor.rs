@@ -43,10 +43,11 @@ pub struct Processor {
     wpm_circ_buf: VecDeque<u32>,
     wpm: u32,
     characters: HashMap<String, u32>,
+    output_file: Option<String>,
 }
 
 impl Processor {
-    pub fn new(sender: mpsc::Sender<UiData>) -> Processor {
+    pub fn new(sender: mpsc::Sender<UiData>, output_file: Option<String>) -> Processor {
 
         let mut vd = VecDeque::<u32>::with_capacity(CIRC_BUF_SIZE);
         for _ in 0..CIRC_BUF_SIZE { vd.push_back(0); }
@@ -58,7 +59,8 @@ impl Processor {
                  current_keys: Some(Vec::new()),
                  wpm_circ_buf: vd,
                  wpm: 0,
-                 characters}
+                 characters,
+                 output_file,}
     }
 
     pub fn process_key(&mut self, mut kd: Keydata) {
@@ -109,6 +111,7 @@ impl Processor {
     }
 
     fn check_notify(&self) {
+        /* TODO Implement when to notify (e.g every 10000th event ?) */
         let shall_notify = false;
         if shall_notify {
             Notification::new()
@@ -116,6 +119,10 @@ impl Processor {
                 .body(&format!("Your current WPM is {}", self.wpm)[..])
                 .show().unwrap();
         }
+    }
+
+    fn write_stats_to_file(&self) {
+        /* TODO Implement the writing of the stats */
     }
 
     pub fn process_second(&mut self) {
@@ -138,5 +145,7 @@ impl Processor {
         self.tx.send(UiData{graph_data, info_string, key_freq}).unwrap();
 
         self.check_notify();
+
+        if let Some(_) = self.output_file { self.write_stats_to_file() };
     }
 }
