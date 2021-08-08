@@ -20,5 +20,9 @@ process each key independent of which application the user is using.
 input file points to the event to listen to. (Make sure that the user that runs the tool has
 rights to read from the file be e.g. being part of the input group).
 
+## Notifications
+To get notified every Nth keystroke pass the `--notify_keys` parameter to get a notification
+after the desired amount of keystroke. Can be useful for RSI.
+
 ## Persistent logging
-By passing the `--output_file` flag the char histogram is continuously written to the specified file.
+By passing the `--output_file` parameter the char histogram is continuously written to the specified file.
