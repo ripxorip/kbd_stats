@@ -3,6 +3,8 @@ use std::collections::VecDeque;
 use std::sync::mpsc;
 use crate::ui;
 use std::collections::HashMap;
+use std::fs::OpenOptions;
+use std::io::prelude::*;
 
 const CIRC_BUF_SIZE:usize = 3600;
 
@@ -121,8 +123,14 @@ impl Processor {
         }
     }
 
-    fn write_stats_to_file(&self) {
-        /* TODO Implement the writing of the stats */
+    fn write_stats_to_file(&self, f: &String, char_vec: &Vec<(String, u32)>) {
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(f).unwrap();
+        char_vec.iter().for_each(|x| write!(file, "{}: {}\n", x.0, x.1).unwrap());
+        file.sync_all().unwrap();
     }
 
     pub fn process_second(&mut self) {
@@ -142,10 +150,11 @@ impl Processor {
         let mut key_freq = Vec::<(String, u32)>::new();
         char_vec.iter().for_each(|x| key_freq.push((x.0.clone(), *x.1)));
 
+        if let Some(f) = &self.output_file { self.write_stats_to_file(f, &key_freq) };
+
         self.tx.send(UiData{graph_data, info_string, key_freq}).unwrap();
 
         self.check_notify();
 
-        if let Some(_) = self.output_file { self.write_stats_to_file() };
     }
 }
