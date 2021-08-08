@@ -46,10 +46,12 @@ pub struct Processor {
     wpm: u32,
     characters: HashMap<String, u32>,
     output_file: Option<String>,
+    notify_keys: Option<u32>,
+    last_notify: u64,
 }
 
 impl Processor {
-    pub fn new(sender: mpsc::Sender<UiData>, output_file: Option<String>) -> Processor {
+    pub fn new(sender: mpsc::Sender<UiData>, output_file: Option<String>, notify_keys: Option<u32>) -> Processor {
 
         let mut vd = VecDeque::<u32>::with_capacity(CIRC_BUF_SIZE);
         for _ in 0..CIRC_BUF_SIZE { vd.push_back(0); }
@@ -62,7 +64,9 @@ impl Processor {
                  wpm_circ_buf: vd,
                  wpm: 0,
                  characters,
-                 output_file,}
+                 output_file,
+                 notify_keys,
+                 last_notify: 0}
     }
 
     pub fn process_key(&mut self, mut kd: Keydata) {
@@ -75,6 +79,8 @@ impl Processor {
         self.characters.insert(kd.get_symbol().clone(), count);
 
         if let Some(keys) = &mut self.current_keys { keys.push(kd); }
+
+        if let Some(k) = self.notify_keys { self.notify(k); }
     }
 
     fn filter_keys(&mut self) {
@@ -112,14 +118,16 @@ impl Processor {
         graph_data
     }
 
-    fn check_notify(&self) {
-        /* TODO Implement when to notify (e.g every 10000th event ?) */
-        let shall_notify = false;
-        if shall_notify {
-            Notification::new()
-                .summary("WPM Alert")
-                .body(&format!("Your current WPM is {}", self.wpm)[..])
-                .show().unwrap();
+    fn notify(&mut self, num_keys: u32) {
+        let num_keys = num_keys as u64;
+        if let Some(n) = self.keys_total.checked_rem(num_keys) {
+            if (0 == n) && (self.keys_total != self.last_notify) {
+                self.last_notify = self.keys_total;
+                Notification::new()
+                    .summary("Kbd Stats")
+                    .body(&format!("You have now pressed {} keys, take a break?", self.keys_total)[..])
+                    .show().unwrap();
+            }
         }
     }
 
@@ -153,8 +161,5 @@ impl Processor {
         if let Some(f) = &self.output_file { self.write_stats_to_file(f, &key_freq) };
 
         self.tx.send(UiData{graph_data, info_string, key_freq}).unwrap();
-
-        self.check_notify();
-
     }
 }

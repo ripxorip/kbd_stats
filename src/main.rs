@@ -20,8 +20,9 @@ fn event_thread(event_file: Option<String>, snd: mpsc::Sender<processor::Keydata
 
 fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>,
                 ui_send: mpsc::Sender<processor::UiData>,
-                output_file: Option<String>) {
-    let mut p = processor::Processor::new(ui_send, output_file);
+                output_file: Option<String>,
+                notify_keys: Option<u32>) {
+    let mut p = processor::Processor::new(ui_send, output_file, notify_keys);
     loop {
         loop {
             let res = rcv.try_recv();
@@ -53,7 +54,7 @@ fn ui_thread(rcv: mpsc::Receiver<processor::UiData>)
     u.run();
 }
 
-fn get_params() -> (Option<String>, Option<String>) {
+fn get_params() -> (Option<String>, Option<String>, Option<u32>) {
     let matches = App::new("Keyboard Statistics")
         .version("0.1.0")
         .author("Philip Karlsson Gisslow <ripxorip@gmail.com>")
@@ -70,7 +71,22 @@ fn get_params() -> (Option<String>, Option<String>) {
                  .takes_value(true)
                  .required(false)
                  .help("Write the statistics to file"))
+        .arg(Arg::with_name("notify_keys")
+                 .short("n")
+                 .long("notify_keys")
+                 .takes_value(true)
+                 .required(false)
+                 .help("The number of keypresses needed to trigger a notification (interval)"))
         .get_matches();
+
+    let notify_keys = match matches.value_of("notify_keys") {
+        Some(s) => {
+            Some(s.parse::<u32>().unwrap())
+        }
+        None => {
+            None
+        }
+    };
     let input_path = match matches.value_of("input_file") {
         Some(s) => {
             Some(String::from(s))
@@ -87,11 +103,11 @@ fn get_params() -> (Option<String>, Option<String>) {
             None
         }
     };
-    (input_path, output_file)
+    (input_path, output_file, notify_keys)
 }
 
 fn main() {
-    let (input_path, output_file) = get_params();
+    let (input_path, output_file, notify_keys) = get_params();
 
     let (ui_send, ui_recv) = mpsc::channel();
     let _ui_thread_handle = thread::spawn(move || {
@@ -99,7 +115,7 @@ fn main() {
     });
     let (send, recv) = mpsc::channel();
     let _timer_thread_handle = thread::spawn(move || {
-        timer_thread(recv, ui_send, output_file);
+        timer_thread(recv, ui_send, output_file, notify_keys);
     });
 
     let _event_thread_handle = thread::spawn(move || {
