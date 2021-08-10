@@ -5,6 +5,7 @@ use crate::ui;
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
+use std::time;
 
 const CIRC_BUF_SIZE:usize = 3600;
 
@@ -48,6 +49,8 @@ pub struct Processor {
     output_file: Option<String>,
     notify_keys: Option<u32>,
     last_notify: u64,
+    sleep_ts: time::SystemTime,
+    last_key_ts: time::SystemTime,
 }
 
 impl Processor {
@@ -66,10 +69,13 @@ impl Processor {
                  characters,
                  output_file,
                  notify_keys,
-                 last_notify: 0}
+                 last_notify: 0,
+                 sleep_ts: time::SystemTime::now(),
+                 last_key_ts: time::SystemTime::now()}
     }
 
     pub fn process_key(&mut self, mut kd: Keydata) {
+        self.last_key_ts = time::SystemTime::now();
         kd.set_timestamp(self.timer);
 
         if *kd.get_kind() == KeyKind::Single { self.keys_total += 1;}
@@ -141,7 +147,26 @@ impl Processor {
         file.sync_all().unwrap();
     }
 
+    fn detect_new_session(&mut self) {
+        if let Ok(elapsed) = self.sleep_ts.elapsed() {
+            /* Check if we have slept */
+            if elapsed.as_millis() > 1500 {
+                self.keys_total = 0;
+            }
+        }
+
+        if let Ok(elapsed) = self.last_key_ts.elapsed() {
+            /* No key pressed in 5 minutes (FIXME: configurable?) */
+            if elapsed.as_secs() > 60*5 {
+                self.keys_total = 0;
+            }
+        }
+    }
+
     pub fn process_second(&mut self) {
+        /* If notifications are set, detect if a new session is started */
+        if let Some(_) = self.notify_keys { self.detect_new_session(); }
+
         self.timer += 1;
         if self.timer > 60 { self.filter_keys(); }
 
@@ -161,5 +186,7 @@ impl Processor {
         if let Some(f) = &self.output_file { self.write_stats_to_file(f, &key_freq) };
 
         self.tx.send(UiData{graph_data, info_string, key_freq}).unwrap();
+
+        self.sleep_ts = time::SystemTime::now();
     }
 }
