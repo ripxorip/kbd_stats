@@ -30,6 +30,11 @@ pub struct UiData {
     pub key_freq: Vec<(String, u32)>,
 }
 
+pub enum UiEvent {
+    NewData(UiData),
+    Kill,
+}
+
 impl Keydata {
     pub fn new(symbol: String, kind: KeyKind) -> Keydata { Keydata{symbol, kind, timestamp: 0} }
     pub fn set_timestamp(&mut self, timestamp: u64) { self.timestamp = timestamp; }
@@ -41,7 +46,7 @@ impl Keydata {
 pub struct Processor {
     timer: u64,
     keys_total: u64,
-    tx: mpsc::Sender<UiData>,
+    tx: mpsc::Sender<UiEvent>,
     current_keys: Option<Vec<Keydata>>,
     wpm_circ_buf: VecDeque<u32>,
     wpm: u32,
@@ -54,7 +59,7 @@ pub struct Processor {
 }
 
 impl Processor {
-    pub fn new(sender: mpsc::Sender<UiData>, output_file: Option<String>, notify_keys: Option<u32>) -> Processor {
+    pub fn new(sender: mpsc::Sender<UiEvent>, output_file: Option<String>, notify_keys: Option<u32>) -> Processor {
 
         let mut vd = VecDeque::<u32>::with_capacity(CIRC_BUF_SIZE);
         for _ in 0..CIRC_BUF_SIZE { vd.push_back(0); }
@@ -185,7 +190,7 @@ impl Processor {
 
         if let Some(f) = &self.output_file { self.write_stats_to_file(f, &key_freq) };
 
-        self.tx.send(UiData{graph_data, info_string, key_freq}).unwrap();
+        self.tx.send(UiEvent::NewData(UiData{graph_data, info_string, key_freq})).unwrap();
 
         self.sleep_ts = time::SystemTime::now();
     }

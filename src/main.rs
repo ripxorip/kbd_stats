@@ -19,7 +19,7 @@ fn event_thread(event_file: Option<String>, snd: mpsc::Sender<processor::Keydata
 }
 
 fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>,
-                ui_send: mpsc::Sender<processor::UiData>,
+                ui_send: mpsc::Sender<processor::UiEvent>,
                 output_file: Option<String>,
                 notify_keys: Option<u32>) {
     let mut p = processor::Processor::new(ui_send, output_file, notify_keys);
@@ -48,7 +48,7 @@ fn timer_thread(rcv: mpsc::Receiver<processor::Keydata>,
     }
 }
 
-fn ui_thread(rcv: mpsc::Receiver<processor::UiData>)
+fn ui_thread(rcv: mpsc::Receiver<processor::UiEvent>)
 {
     let mut u = ui::UI::new(rcv);
     u.run();
@@ -110,6 +110,8 @@ fn main() {
     let (input_path, output_file, notify_keys) = get_params();
 
     let (ui_send, ui_recv) = mpsc::channel();
+    let ui_send_copy = ui_send.clone();
+
     let _ui_thread_handle = thread::spawn(move || {
         ui_thread(ui_recv);
     });
@@ -127,7 +129,8 @@ fn main() {
         for evt in stdin.keys() {
             if let Ok(key) = evt {
                 if key == Key::Char('q') {
-                    /* FIXME: Exit gracefully using the thread handles */
+                    /* FIXME: Continue to exit gracefully using the thread handles.. */
+                    ui_send_copy.send(processor::UiEvent::Kill).unwrap();
                     return;
                 }
             }

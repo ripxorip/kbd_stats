@@ -19,7 +19,7 @@ use tui::{
 pub const X_AXIS_SIZE:usize = 20;
 
 pub struct UI {
-    rx: mpsc::Receiver<processor::UiData>,
+    rx: mpsc::Receiver<processor::UiEvent>,
     /* Window */
     x_axis_window: [f64; 2],
     /* X and Y */
@@ -31,7 +31,7 @@ pub struct UI {
 }
 
 impl UI {
-    pub fn new(rcv: mpsc::Receiver<processor::UiData>) -> UI {
+    pub fn new(rcv: mpsc::Receiver<processor::UiEvent>) -> UI {
 
         let mut dv = Vec::<(f64, f64)>::with_capacity(X_AXIS_SIZE);
 
@@ -146,7 +146,15 @@ impl UI {
             }).unwrap();
 
             /* Get new data for plotting */
-            let msg = self.rx.recv().unwrap();
+            let msg = match self.rx.recv().unwrap() {
+                processor::UiEvent::NewData(m) => {
+                    m
+                }
+                processor::UiEvent::Kill => {
+                    break;
+                }
+            };
+
             self.data = msg.graph_data;
             self.info_buf.pop_front();
             self.info_buf.push_back(msg.info_string);
