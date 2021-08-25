@@ -46,6 +46,7 @@ impl Keydata {
 pub struct Processor {
     timer: u64,
     keys_total: u64,
+    keys_session: u64,
     tx: mpsc::Sender<UiEvent>,
     current_keys: Option<Vec<Keydata>>,
     wpm_circ_buf: VecDeque<u32>,
@@ -67,6 +68,7 @@ impl Processor {
 
         Processor{timer: 0,
                  keys_total: 0,
+                 keys_session: 0,
                  tx: sender,
                  current_keys: Some(Vec::new()),
                  wpm_circ_buf: vd,
@@ -83,7 +85,10 @@ impl Processor {
         self.last_key_ts = time::SystemTime::now();
         kd.set_timestamp(self.timer);
 
-        if *kd.get_kind() == KeyKind::Single { self.keys_total += 1;}
+        if *kd.get_kind() == KeyKind::Single {
+            self.keys_total += 1;
+            self.keys_session += 1;
+        }
 
         let mut count = 1;
         if let Some(c) = self.characters.get(kd.get_symbol()) { count = *c + 1; }
@@ -131,12 +136,12 @@ impl Processor {
 
     fn notify(&mut self, num_keys: u32) {
         let num_keys = num_keys as u64;
-        if let Some(n) = self.keys_total.checked_rem(num_keys) {
-            if (0 == n) && (self.keys_total != self.last_notify) {
-                self.last_notify = self.keys_total;
+        if let Some(n) = self.keys_session.checked_rem(num_keys) {
+            if (0 == n) && (self.keys_session != self.last_notify) {
+                self.last_notify = self.keys_session;
                 Notification::new()
                     .summary("Kbd Stats")
-                    .body(&format!("You have now pressed {} keys, take a break?", self.keys_total)[..])
+                    .body(&format!("You have now pressed {} more keys, take a break?", self.keys_session)[..])
                     .show().unwrap();
             }
         }
@@ -156,14 +161,14 @@ impl Processor {
         if let Ok(elapsed) = self.sleep_ts.elapsed() {
             /* Check if we have slept */
             if elapsed.as_millis() > 1500 {
-                self.keys_total = 0;
+                self.keys_session = 0;
             }
         }
 
         if let Ok(elapsed) = self.last_key_ts.elapsed() {
             /* No key pressed in 5 minutes (FIXME: configurable?) */
             if elapsed.as_secs() > 60*5 {
-                self.keys_total = 0;
+                self.keys_session = 0;
             }
         }
     }
@@ -182,8 +187,8 @@ impl Processor {
         let mut char_vec: Vec<(&String, &u32)> = self.characters.iter().collect();
         char_vec.sort_by(|a, b| b.1.cmp(a.1));
 
-        let info_string = String::from(format!("Current WPM: {} Total Keys: {}",
-                                               self.wpm, self.keys_total));
+        let info_string = String::from(format!("Current WPM: {} Num Keys Since Break: {} Total Num Keys: {}",
+                                               self.wpm, self.keys_session, self.keys_total));
 
         let mut key_freq = Vec::<(String, u32)>::new();
         char_vec.iter().for_each(|x| key_freq.push((x.0.clone(), *x.1)));
