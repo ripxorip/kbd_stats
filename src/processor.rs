@@ -142,7 +142,7 @@ impl Processor {
                 Notification::new()
                     .summary("Kbd Stats")
                     .body(&format!("You have now pressed {} more keys, take a break?", self.keys_session)[..])
-                    .show().unwrap();
+                    .show().expect("Failed to show notification, running as sudo? (Hint add yourself to the 'input' group and run as your user instead)");
             }
         }
     }
